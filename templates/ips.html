@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>IPS Configuration</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #444; }
+        .btn-back { background: #6c757d; text-decoration: none; padding: 10px 15px; color: white; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
+        .section { margin-bottom: 40px; padding: 20px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #007bff; color: white; }
+        .alert-sig { color: #d9534f; font-weight: bold; }
+        .alert-anom { color: #fd7e14; font-weight: bold; }
+        
+        input, select { padding: 8px; margin-right: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 15px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        button.del { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="btn-back">← Back to Dashboard</a>
+        <h1>🛡️ Intrusion Prevention System (IPS)</h1>
+
+        <div class="section">
+            <h2>➕ Configure IDS/IPS Rules</h2>
+            <form action="/ips/add" method="POST">
+                <label>Target Device:</label>
+                <select name="mac_addr" required>
+                    {% for d in devices %}
+                    <option value="{{ d['mac_addr'] }}">{{ d['hostname'] }} ({{ d['ip_addr'] }})</option>
+                    {% endfor %}
+                </select>
+                <br><br>
+
+                <label>Detection Type:</label>
+                <select name="rule_type" id="rtype" onchange="toggleFields()">
+                    <option value="SIGNATURE">Signature (IP Whitelist)</option>
+                    <option value="ANOMALY">Anomaly (Data Rate Threshold)</option>
+                </select>
+                <br><br>
+
+                <div id="sig-fields">
+                    <label>Allowed Destination IP (Pattern):</label>
+                    <input type="text" name="parameter" placeholder="e.g. 8.8.8.8">
+                    <small>Alert if device connects to anything else.</small>
+                </div>
+
+                <div id="anom-fields" style="display:none;">
+                    <label>Max Data Rate (KB/s):</label>
+                    <input type="text" name="parameter" placeholder="e.g. 100">
+                    <br><br>
+                    <label>Throttle Duration (Minutes):</label>
+                    <input type="number" name="action_param" value="5" min="1">
+                    <small>Slow down internet if rate exceeded.</small>
+                </div>
+                <br>
+                <button type="submit">Add Rule</button>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>📋 Active Rules</h2>
+            <table>
+                <thead><tr><th>Device</th><th>Type</th><th>Condition</th><th>Action</th><th></th></tr></thead>
+                <tbody>
+                    {% for r in rules %}
+                    <tr>
+                        <td>{{ r['hostname'] }}</td>
+                        <td><b>{{ r['rule_type'] }}</b></td>
+                        <td>
+                            {% if r['rule_type'] == 'SIGNATURE' %} Allowed IP: {{ r['parameter'] }}
+                            {% else %} Rate > {{ r['parameter'] }} KB/s {% endif %}
+                        </td>
+                        <td>
+                            {% if r['rule_type'] == 'SIGNATURE' %} Log Alert
+                            {% else %} Throttle {{ r['action_param'] }} mins {% endif %}
+                        </td>
+                        <td>
+                            <form action="/ips/delete/{{ r['id'] }}" method="POST" style="margin:0;">
+                                <button class="del">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}<tr><td colspan="5">No IPS rules active.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>🚨 Intrusion Alerts Log</h2>
+            <table>
+                <thead><tr><th>Time</th><th>Device</th><th>Type</th><th>Message</th></tr></thead>
+                <tbody>
+                    {% for a in alerts %}
+                    <tr>
+                        <td>{{ a['timestamp'] }}</td>
+                        <td>{{ a['hostname'] }}</td>
+                        <td class="{{ 'alert-sig' if a['alert_type']=='SIGNATURE' else 'alert-anom' }}">{{ a['alert_type'] }}</td>
+                        <td>{{ a['message'] }}</td>
+                    </tr>
+                    {% else %}<tr><td colspan="4">No intrusions detected.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function toggleFields() {
+            var type = document.getElementById("rtype").value;
+            if (type === "SIGNATURE") {
+                document.getElementById("sig-fields").style.display = "block";
+                document.getElementById("anom-fields").style.display = "none";
+            } else {
+                document.getElementById("sig-fields").style.display = "none";
+                document.getElementById("anom-fields").style.display = "block";
+            }
+        }
+    </script>
+</body>
+</html>

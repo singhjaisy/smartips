@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f9; }
+        .container { max-width: 1200px; margin: auto; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background: #007bff; color: white; }
+        .btn { padding: 8px 15px; background: #dc3545; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        .btn-back { background: #6c757d; text-decoration: none; display: inline-block; margin-bottom: 10px; padding: 10px; color: white; border-radius: 4px;}
+        .toggle-btn { padding: 5px 15px; background: #e9ecef; border: 1px solid #ced4da; cursor: pointer; border-radius: 4px; margin-right: 5px; }
+        .toggle-btn.active { background: #007bff; color: white; border-color: #007bff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="btn-back">← Back to Dashboard</a>
+        
+        <div class="card">
+            <h2>📱 {{ device['hostname'] }}</h2>
+            <p><strong>IP:</strong> {{ device['ip_addr'] }} | <strong>MAC:</strong> {{ device['mac_addr'] }}</p>
+            <p><strong>Model:</strong> {{ device['model'] }} | <strong>Version:</strong> {{ device['version'] }}</p>
+            <p><i>{{ device['description'] }}</i></p>
+            <form action="/delete_history/{{ device['mac_addr'] }}" method="post">
+                <button name="action" value="all" class="btn">Clear History</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>📈 Data Rate History</h2>
+                <div>
+                    <button class="toggle-btn" onclick="loadGraph(0.04)">1h</button>
+                    <button class="toggle-btn active" onclick="loadGraph(1)">24h</button>
+                    <button class="toggle-btn" onclick="loadGraph(7)">7d</button>
+                </div>
+            </div>
+            <canvas id="trafficChart"></canvas>
+        </div>
+
+        <div class="card">
+            <h2>🌐 Network Flows</h2>
+            <table>
+                <thead><tr><th>Remote IP</th><th>Proto</th><th>Ports (Src->Dst)</th><th>Packets</th><th>Last Active</th></tr></thead>
+                <tbody>
+                    {% for flow in flows %}
+                    <tr>
+                        <td>{{ flow['remote_ip'] }}</td>
+                        <td>{{ flow['protocol'] }}</td>
+                        <td>{{ flow['local_port'] }} -> {{ flow['remote_port'] }}</td>
+                        <td>{{ flow['packet_count'] }}</td>
+                        <td>{{ flow['last_activation'] }}</td>
+                    </tr>
+                    {% else %}<tr><td colspan="5">No flows recorded.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('trafficChart').getContext('2d');
+        const mac = "{{ device['mac_addr'] }}";
+        let trafficChart = null;
+
+        function loadGraph(days) {
+            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            fetch(`/api/history/${mac}?days=${days}`).then(r => r.json()).then(data => {
+                if (trafficChart) trafficChart.destroy();
+                trafficChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Traffic (KB/s)', data: data.data,
+                            borderColor: '#007bff', backgroundColor: 'rgba(0,123,255,0.1)', fill: true, tension: 0.4
+                        }]
+                    },
+                    options: { scales: { y: { beginAtZero: true } } }
+                });
+            });
+        }
+        document.querySelector('.toggle-btn.active').click();
+    </script>
+</body>
+</html>

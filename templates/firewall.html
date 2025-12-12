@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Firewall Configuration</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #444; }
+        .btn-back { background: #6c757d; text-decoration: none; padding: 10px 15px; color: white; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
+        
+        /* Form Styles */
+        .fw-form { background: #f8f9fa; padding: 20px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 30px; }
+        input, select { padding: 10px; margin-right: 10px; border: 1px solid #ced4da; border-radius: 4px; }
+        button { padding: 10px 20px; background: #dc3545; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        button:hover { background: #c82333; }
+
+        /* Table Styles */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #343a40; color: white; }
+        .type-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; }
+        .type-ip { background: #e2e3e5; color: #383d41; }
+        .type-port { background: #d1ecf1; color: #0c5460; }
+        .btn-del { background: #6c757d; font-size: 0.9em; padding: 6px 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="btn-back">← Back to Dashboard</a>
+        
+        <h1>🛡️ Firewall Configuration</h1>
+        <p>Configure the <b>Blacklist Table</b>. Packets matching these rules will be dropped.</p>
+
+        <div class="fw-form">
+            <h2>➕ Add New Rule</h2>
+            <form action="/firewall/add" method="POST">
+                <select name="rule_type" required>
+                    <option value="IP">Block IP Address</option>
+                    <option value="PORT">Block Port</option>
+                </select>
+                
+                <input type="text" name="target" placeholder="e.g. 192.168.1.50 or 80" required>
+                
+                <select name="protocol">
+                    <option value="ALL">All Protocols</option>
+                    <option value="TCP">TCP Only</option>
+                    <option value="UDP">UDP Only</option>
+                </select>
+                
+                <input type="text" name="description" placeholder="Description (Optional)" style="width: 200px;">
+                
+                <button type="submit">Add Rule</button>
+            </form>
+        </div>
+
+        <h2>📋 Active Rules</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Target</th>
+                    <th>Protocol</th>
+                    <th>Description</th>
+                    <th>Added On</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in rules %}
+                <tr>
+                    <td>
+                        <span class="type-badge {{ 'type-ip' if rule['rule_type'] == 'IP' else 'type-port' }}">
+                            {{ rule['rule_type'] }}
+                        </span>
+                    </td>
+                    <td><strong>{{ rule['target'] }}</strong></td>
+                    <td>{{ rule['protocol'] }}</td>
+                    <td>{{ rule['description'] }}</td>
+                    <td>{{ rule['created_at'] }}</td>
+                    <td>
+                        <form action="/firewall/delete/{{ rule['id'] }}" method="POST" style="margin:0;">
+                            <button class="btn-del" onclick="return confirm('Remove this rule?');">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" style="text-align:center; padding: 20px;">No firewall rules active.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

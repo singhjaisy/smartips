@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart IPS Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #444; }
+        
+        /* Table Styles */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #009879; color: #ffffff; text-transform: uppercase; }
+        
+        /* Status Tags */
+        .status-blocked { background-color: #ffe6e6 !important; }
+        .tag-blocked { color: #d9534f; font-weight: bold; border: 1px solid #d9534f; padding: 4px; border-radius: 4px; background: white;}
+        .tag-active { color: #28a745; font-weight: bold; border: 1px solid #28a745; padding: 4px; border-radius: 4px; background: white;}
+        
+        /* Buttons */
+        a.btn { text-decoration: none; padding: 6px 12px; border-radius: 4px; color: white; display: inline-block; margin-right: 4px; font-size: 0.9em; }
+        .btn-block { background-color: #d9534f; }
+        .btn-unblock { background-color: #28a745; }
+        .btn-edit { background-color: #6c757d; }
+        
+        /* Links */
+        .device-link { color: #007bff; font-weight: bold; text-decoration: none; }
+        .device-link:hover { text-decoration: underline; }
+        
+        /* Admin Panel Styles */
+        .admin-panel { margin-top: 40px; padding: 20px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; }
+        .admin-panel h3 { margin-top: 0; color: #495057; }
+        .admin-btn { padding: 10px 15px; border: none; border-radius: 4px; color: white; cursor: pointer; margin-right: 10px; font-weight: bold; }
+        
+        .btn-firewall { background-color: #dc3545; font-size: 1.1em; padding: 12px 20px; }
+        .btn-ips { background-color: #6610f2; font-size: 1.1em; padding: 12px 20px; }
+        
+        .btn-log { background-color: #17a2b8; }
+        .btn-flow { background-color: #ffc107; color: #333; }
+        .btn-reset { background-color: #343a40; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📡 Smart IPS Dashboard</h1>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>IPv4 / IPv6</th>
+                <th>MAC Address</th>
+                <th>Hostname (Click for Details)</th>
+                <th>Vendor</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for device in devices %}
+            <tr class="{{ 'status-blocked' if device['is_blocked'] else '' }}">
+                <td>{{ device['ip_addr'] }}<br><small style="color:#777">{{ device['ipv6_addr'] if device['ipv6_addr'] else '-' }}</small></td>
+                <td><code style="background:#eee; padding:2px;">{{ device['mac_addr'] }}</code></td>
+                <td><a href="/device/{{ device['mac_addr'] }}" class="device-link">{{ device['hostname'] }} 📊</a></td>
+                <td>{{ device['vendor'] }}</td>
+                <td>
+                    {% if device['is_blocked'] %} <span class="tag-blocked">⛔ BLOCKED</span>
+                    {% else %} <span class="tag-active">✅ ALLOWED</span> {% endif %}
+                </td>
+                <td>
+                    <a href="/edit/{{ device['mac_addr'] }}" class="btn btn-edit">Edit</a>
+                    {% if device['is_blocked'] %} <a href="/unblock/{{ device['mac_addr'] }}" class="btn btn-unblock">Unblock</a>
+                    {% else %} <a href="/block/{{ device['mac_addr'] }}" class="btn btn-block">Block</a> {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" style="text-align: center;">No devices connected.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="admin-panel">
+        <h3>🛠️ Admin Controls</h3>
+        
+        <div style="margin-bottom: 20px;">
+            <a href="/firewall" style="text-decoration:none;">
+                <button class="admin-btn btn-firewall">🛡️ Configure Firewall</button>
+            </a>
+
+            <a href="/ips" style="text-decoration:none;">
+                <button class="admin-btn btn-ips">🚨 Configure IPS / IDS</button>
+            </a>
+        </div>
+
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #ddd;">
+
+        <form action="/admin/cleanup" method="POST" style="display:inline;">
+            <button type="submit" name="action" value="clear_sys_logs" class="admin-btn btn-log" title="Clears dnsmasq.log and hostapd.log">📄 Clear System Logs</button>
+            <button type="submit" name="action" value="clear_all_flows" class="admin-btn btn-flow" title="Deletes all flow history from DB">🌐 Clear All Flows</button>
+            <button type="submit" name="action" value="factory_reset" class="admin-btn btn-reset" title="Wipes Database and Logs completely" onclick="return confirm('⚠️ Are you sure? This will delete ALL devices, history, rules, and logs.');">⚠️ Factory Reset</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>
