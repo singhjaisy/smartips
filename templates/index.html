@@ -64,8 +64,8 @@
                 <td><a href="/device/{{ device['mac_addr'] }}" class="device-link">{{ device['hostname'] }} 📊</a></td>
                 <td>{{ device['vendor'] }}</td>
                 <td>
-                    {% if device['is_blocked'] %} <span class="tag-blocked">⛔ BLOCKED</span>
-                    {% else %} <span class="tag-active">✅ ALLOWED</span> {% endif %}
+                    {% if device['is_blocked'] %} <span class="tag-blocked">BLOCKED</span>
+                    {% else %} <span class="tag-active">ALLOWED</span> {% endif %}
                 </td>
                 <td>
                     <a href="/edit/{{ device['mac_addr'] }}" class="btn btn-edit">Edit</a>
@@ -84,11 +84,11 @@
         
         <div style="margin-bottom: 20px;">
             <a href="/firewall" style="text-decoration:none;">
-                <button class="admin-btn btn-firewall">🛡️ Configure Firewall</button>
+                <button class="admin-btn btn-firewall">Configure Firewall</button>
             </a>
 
             <a href="/ips" style="text-decoration:none;">
-                <button class="admin-btn btn-ips">🚨 Configure IPS / IDS</button>
+                <button class="admin-btn btn-ips">Configure IPS / IDS</button>
             </a>
         </div>
 

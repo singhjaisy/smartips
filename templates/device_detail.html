@@ -2,7 +2,10 @@
 <html>
 <head>
     <title>Device Monitor</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+
+
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: #f4f4f9; }
         .container { max-width: 1200px; margin: auto; }
@@ -33,18 +36,19 @@
 
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>📈 Data Rate History</h2>
+                <h2>Data Rate History</h2>
                 <div>
-                    <button class="toggle-btn" onclick="loadGraph(0.04)">1h</button>
-                    <button class="toggle-btn active" onclick="loadGraph(1)">24h</button>
-                    <button class="toggle-btn" onclick="loadGraph(7)">7d</button>
+                    <button class="toggle-btn" onclick="loadGraph(1/24, this)">1h</button>
+<button class="toggle-btn active" onclick="loadGraph(1, this)">24h</button>
+<button class="toggle-btn" onclick="loadGraph(7, this)">7d</button>
+
                 </div>
             </div>
             <canvas id="trafficChart"></canvas>
         </div>
 
         <div class="card">
-            <h2>🌐 Network Flows</h2>
+            <h2>Network Flows</h2>
             <table>
                 <thead><tr><th>Remote IP</th><th>Proto</th><th>Ports (Src->Dst)</th><th>Packets</th><th>Last Active</th></tr></thead>
                 <tbody>
@@ -62,31 +66,87 @@
         </div>
     </div>
 
-    <script>
-        const ctx = document.getElementById('trafficChart').getContext('2d');
-        const mac = "{{ device['mac_addr'] }}";
-        let trafficChart = null;
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script>
+const ctx = document.getElementById('trafficChart').getContext('2d');
+const mac = "{{ device['mac_addr'] }}";
+let trafficChart = null;
+const ANOMALY_THRESHOLD = 50; // KB/s (adjust later)
 
-        function loadGraph(days) {
-            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
 
-            fetch(`/api/history/${mac}?days=${days}`).then(r => r.json()).then(data => {
-                if (trafficChart) trafficChart.destroy();
-                trafficChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: data.labels,
+function loadGraph(days, btn) {
+    document.querySelectorAll('.toggle-btn')
+        .forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    fetch(`/api/history/${mac}?days=${days}`)
+        .then(r => r.json())
+        .then(data => {
+
+            if (trafficChart) trafficChart.destroy();
+
+            if (!data.values || data.values.length === 0) {
+                ctx.clearRect(0, 0, 600, 300);
+                ctx.font = '16px sans-serif';
+                ctx.fillText('No data available for this period', 40, 100);
+                return;
+            }
+
+            trafficChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
                         datasets: [{
-                            label: 'Traffic (KB/s)', data: data.data,
-                            borderColor: '#007bff', backgroundColor: 'rgba(0,123,255,0.1)', fill: true, tension: 0.4
+                            label: 'Traffic (KB/s)',
+                            data: data.values,
+                            borderWidth: 2,
+                            pointRadius: days <= (1/24) ? 3 : 0,
+                            pointHoverRadius: 5,
+                            tension: 0.1,
+                            fill: true
                         }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.parsed.y.toFixed(2)} KB/s`
+                            }
+                        }
                     },
-                    options: { scales: { y: { beginAtZero: true } } }
-                });
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: days <= (1/24) ? 'minute'
+                                     : days <= 1 ? 'hour'
+                                     : 'day',
+                                tooltipFormat: 'PPpp'
+                            },
+                            ticks: {
+                                maxRotation: 0,
+                                autoSkip: true
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'KB/s'
+                            },
+                            suggestedMax: Math.max(...data.values) * 1.2
+                        }
+                    }
+                }
             });
-        }
-        document.querySelector('.toggle-btn.active').click();
-    </script>
+        });
+}
+
+// Auto-load default (24h)
+document.querySelector('.toggle-btn.active').click();
+</script>
+
 </body>
 </html>

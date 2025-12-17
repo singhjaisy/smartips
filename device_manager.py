@@ -5,7 +5,6 @@ import subprocess
 from datetime import datetime, timedelta
 from mac_vendor_lookup import MacLookup
 
-# --- CONFIGURATION ---
 DB_PATH = 'ips_data.db'
 LEASES_FILE = '/var/lib/misc/dnsmasq.leases'
 HISTORY_DAYS = 7
@@ -19,7 +18,7 @@ class DeviceManager:
         except: print("[!] Could not download vendor DB. Using local cache.")
         
         os.system("sysctl -w net.netfilter.nf_conntrack_acct=1 > /dev/null")
-        self.throttled_devices = {} # In-memory tracker: {mac: expiry_timestamp}
+        self.throttled_devices = {}
         self.init_db()
         self.apply_firewall_rules()
 
@@ -66,8 +65,6 @@ class DeviceManager:
         rules = conn.execute("SELECT * FROM firewall_rules").fetchall()
         conn.close()
         
-        # Clear existing non-IPS chains (simplified for lab)
-        # We rely on specific rule insertion to avoid dupes in a real loop
         pass 
 
     def get_ips_rules(self):
@@ -89,11 +86,10 @@ class DeviceManager:
 
     def throttle_device(self, mac, duration_mins):
         """Throttles a device using iptables limit module"""
-        if mac in self.throttled_devices: return # Already throttled
+        if mac in self.throttled_devices: return 
 
         print(f"[!!!] THROTTLING {mac} for {duration_mins} minutes.")
         self.throttled_devices[mac] = datetime.now() + timedelta(minutes=duration_mins)
-        
         # Logic: 1. Allow limited packets. 2. Drop the rest.
         # Limit to ~10 packets/sec (approx very slow connection)
         subprocess.run(f"iptables -I FORWARD 1 -m mac --mac-source {mac} -m limit --limit 10/sec -j ACCEPT", shell=True)
@@ -137,7 +133,6 @@ class DeviceManager:
                     pkts = int(next(p for p in parts if 'packets=' in p).split('=')[1])
                     bytes_v = int(next(p for p in parts if 'bytes=' in p).split('=')[1])
                     
-                    # 1. Traffic Logging & Anomaly Check
                     mac = devices.get(src) # Outbound traffic
                     if mac: 
                         self.log_flow(mac, dst, sport, dport, proto, pkts)
@@ -180,7 +175,7 @@ class DeviceManager:
 
     def log_data_rate(self, mac, tx, rx):
         """Logs rate and returns the calculated KB/s for immediate checking"""
-        rate = (tx + rx) / 1024.0 # Simple snapshot rate
+        rate = round((tx + rx) / 1024.0, 2)
         conn = sqlite3.connect(DB_PATH)
         conn.execute('INSERT INTO data_rates (mac_addr, rx_bytes, tx_bytes, rate_kbps) VALUES (?,?,?,?)', (mac, rx, tx, rate))
         conn.commit()
@@ -204,7 +199,7 @@ class DeviceManager:
         conn.commit()
         conn.close()
     
-    # ... Helper methods get_vendor, get_ipv6, clean_old_records (Same as previous) ...
+
     def get_vendor(self, mac):
         try: return self.mac_lookup.lookup(mac)
         except: return "Unknown"
@@ -212,9 +207,15 @@ class DeviceManager:
         try:
             output = subprocess.check_output("ip -6 neigh", shell=True).decode()
             for line in output.splitlines():
-                if mac in line: return line.split()[0]
-        except: pass
-        return "-"
+                if mac in line:
+                    parts = line.split()
+                    # Return the IP address (first part)
+                    return parts[0]
+
+        except Exception as e:
+            print(f"[!] Error fetching IPv6 for {mac}: {e}")
+        
+        return "N/A"  # Return N/A instead of "-" so you know it checked
     def clean_old_records(self):
         conn = sqlite3.connect(DB_PATH)
         cutoff = datetime.now() - timedelta(days=HISTORY_DAYS)
