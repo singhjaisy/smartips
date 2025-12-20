@@ -18,7 +18,7 @@
         
         input, select { padding: 8px; margin-right: 5px; border: 1px solid #ccc; border-radius: 4px; }
         button { padding: 8px 15px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; }
-        button.del { background: #dc3545; }
+        .btn-del { background: #dc3545; text-decoration: none; display: inline-block; color: white; font-size: 0.9em;}
     </style>
 </head>
 <body>
@@ -28,7 +28,7 @@
 
         <div class="section">
             <h2>Configure IDS/IPS Rules</h2>
-            <form action="/ips/add" method="POST">
+            <form action="{{ url_for('ips_add_rule') }}" method="POST">
                 <label>Target Device:</label>
                 <select name="mac_addr" required>
                     {% for d in devices %}
@@ -81,9 +81,7 @@
                             {% else %} Throttle {{ r['action_param'] }} mins {% endif %}
                         </td>
                         <td>
-                            <form action="/ips/delete/{{ r['id'] }}" method="POST" style="margin:0;">
-                                <button class="del">Delete</button>
-                            </form>
+                            <a href="{{ url_for('ips_delete_rule', rule_id=r['id']) }}" class="button btn-del">Delete</a>
                         </td>
                     </tr>
                     {% else %}<tr><td colspan="5">No IPS rules active.</td></tr>{% endfor %}

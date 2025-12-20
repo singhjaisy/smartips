@@ -38,6 +38,10 @@ def index():
 @app.route('/ips')
 def ips_dashboard():
     conn = get_db()
+    
+    # --- FIX: Fetch list of devices for the "Target Device" dropdown ---
+    devices = conn.execute('SELECT * FROM devices').fetchall()
+    
     # Get active Rules joined with Device info
     rules = conn.execute('''
         SELECT r.*, d.hostname, d.ip_addr 
@@ -53,7 +57,9 @@ def ips_dashboard():
         ORDER BY a.timestamp DESC LIMIT 50
     ''').fetchall()
     conn.close()
-    return render_template('ips.html', rules=rules, alerts=alerts)
+    
+    # --- FIX: Pass 'devices=devices' to the template ---
+    return render_template('ips.html', rules=rules, alerts=alerts, devices=devices)
 
 @app.route('/ips/add_rule', methods=['POST'])
 def ips_add_rule():
@@ -114,7 +120,7 @@ def add_fw_rule():
     conn.close()
     return redirect(url_for('firewall'))
 
-@app.route('/firewall/delete/<int:rule_id>')
+@app.route('/firewall/delete/<int:rule_id>', methods=['POST'])  # <--- Added POST here
 def delete_fw_rule(rule_id):
     conn = get_db()
     rule = conn.execute('SELECT * FROM firewall_rules WHERE id = ?', (rule_id,)).fetchone()
